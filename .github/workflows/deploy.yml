@@ -1,4 +1,4 @@
-name: Deploy app-basura (Angular) a servidor Apache
+name: Deploy leo_site (EcoRecolecta) angular a servidor Apache
 
 on:
   push:
@@ -10,8 +10,8 @@ jobs:
 
     env:
       LOCAL_BUILD_DIR: dist/app-frontend/browser
-      DEPLOY_PATH: ${{ secrets.SSH_DEPLOY_PATH }}
-      BASE_HREF: "/leo_site/"
+      DEPLOY_PATH: /var/www/leo_site        # ← fijo, sin secret
+      BASE_HREF: "/leo_site/"               # cambia a "/" si sirve en raíz
 
     steps:
       - name: Checkout
@@ -32,28 +32,25 @@ jobs:
       - name: Preparar clave SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Subir build al servidor (scp)
+      - name: Subir build al servidor
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
           key_path: ~/.ssh/deploy_key
-          port: ${{ secrets.SSH_PORT }}
           source: "${{ env.LOCAL_BUILD_DIR }}/*"
           target: "~/releases/app-basura-${{ github.run_id }}"
-          strip_components: 0
 
       - name: Mover a ${DEPLOY_PATH} y reiniciar Apache
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
           key_path: ~/.ssh/deploy_key
-          port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
             RELEASE_DIR=~/releases/app-basura-${{ github.run_id }}
@@ -65,3 +62,4 @@ jobs:
             sudo find "${{ env.DEPLOY_PATH }}" -type f -exec chmod 644 {} \;
             sudo systemctl restart apache2
             echo "Despliegue completado"
+
