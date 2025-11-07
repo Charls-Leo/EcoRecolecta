@@ -2,41 +2,56 @@ name: Deploy leo_site (EcoRecolecta) angular a servidor Apache
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ]   # cambia si usas otra rama
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     env:
+      # Carpeta que genera tu build (por tu angular.json con nombre "app-frontend")
       LOCAL_BUILD_DIR: dist/app-frontend/browser
-      DEPLOY_PATH: /var/www/leo_site        # ← fijo, sin secret
-      BASE_HREF: "/leo_site/"               # cambia a "/" si sirve en raíz
+      # Ruta final donde Apache sirve el sitio
+      DEPLOY_PATH: /var/www/leo_site
+      BASE_HREF: "/leo_site/"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Node.js
+      - name: Node.js (LTS compatible con Angular)
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
+
+      - name: Versions
+        run: |
+          node -v
+          npm -v
 
       - name: Instalar dependencias
         run: npm ci
 
       - name: Build Angular (prod)
-        run: npx ng build --configuration production --base-href "${BASE_HREF}"
+        run: |
+          # usar el CLI correcto incluso si no está en devDependencies
+          npx -p @angular/cli@latest ng version
+          npx -p @angular/cli@latest ng build --configuration production --base-href "${BASE_HREF}"
+          echo "📁 Árbol de dist:"
+          ls -la dist || true
+          ls -la dist/app-frontend || true
+          ls -la dist/app-frontend/browser || true
 
       - name: Preparar clave SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          # agrega la huella del host para evitar prompts
           ssh-keyscan "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Subir build al servidor
+      - name: Subir build al servidor (scp)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -44,22 +59,25 @@ jobs:
           key_path: ~/.ssh/deploy_key
           source: "${{ env.LOCAL_BUILD_DIR }}/*"
           target: "~/releases/app-basura-${{ github.run_id }}"
+          strip_components: 0
 
-      - name: Mover a ${DEPLOY_PATH} y reiniciar Apache
+      - name: Publicar en ${DEPLOY_PATH} y reiniciar Apache
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key_path: ~/.ssh/deploy_key
           script: |
-            set -e
+            set -euo pipefail
             RELEASE_DIR=~/releases/app-basura-${{ github.run_id }}
             sudo mkdir -p "${{ env.DEPLOY_PATH }}"
+            # despliegue simple y limpio
             sudo rm -rf "${{ env.DEPLOY_PATH }}/*"
             sudo cp -r "$RELEASE_DIR"/* "${{ env.DEPLOY_PATH }}/"
+            # permisos para Apache
             sudo chown -R www-data:www-data "${{ env.DEPLOY_PATH }}"
             sudo find "${{ env.DEPLOY_PATH }}" -type d -exec chmod 755 {} \;
             sudo find "${{ env.DEPLOY_PATH }}" -type f -exec chmod 644 {} \;
+            # reiniciar apache
             sudo systemctl restart apache2
             echo "Despliegue completado"
-
