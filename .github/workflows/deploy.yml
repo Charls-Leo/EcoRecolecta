@@ -45,41 +45,31 @@ jobs:
           ls -la dist/app-frontend || true
           ls -la dist/app-frontend/browser || true
 
-      - name: Preparar clave SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          # agrega la huella del host para evitar prompts
-          ssh-keyscan "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
-
       - name: Subir build al servidor (scp)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: ~/.ssh/deploy_key
+          key: ${{ secrets.DEPLOY_KEY }}          # 👈 ANTES era key_path
           source: "${{ env.LOCAL_BUILD_DIR }}/*"
-          target: "~/releases/app-basura-${{ github.run_id }}"
+          target: "/home/${{ secrets.DEPLOY_USER }}/releases/app-basura-${{ github.run_id }}"
           strip_components: 0
+
 
       - name: Publicar en ${DEPLOY_PATH} y reiniciar Apache
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: ~/.ssh/deploy_key
+          key: ${{ secrets.DEPLOY_KEY }}
           script: |
             set -euo pipefail
-            RELEASE_DIR=~/releases/app-basura-${{ github.run_id }}
+            RELEASE_DIR=/home/${{ secrets.DEPLOY_USER }}/releases/app-basura-${{ github.run_id }}
             sudo mkdir -p "${{ env.DEPLOY_PATH }}"
-            # despliegue simple y limpio
             sudo rm -rf "${{ env.DEPLOY_PATH }}/*"
             sudo cp -r "$RELEASE_DIR"/* "${{ env.DEPLOY_PATH }}/"
-            # permisos para Apache
             sudo chown -R www-data:www-data "${{ env.DEPLOY_PATH }}"
             sudo find "${{ env.DEPLOY_PATH }}" -type d -exec chmod 755 {} \;
             sudo find "${{ env.DEPLOY_PATH }}" -type f -exec chmod 644 {} \;
-            # reiniciar apache
             sudo systemctl restart apache2
             echo "Despliegue completado"
