@@ -1,17 +1,17 @@
-name: Deploy leo_site (EcoRecolecta) angular a servidor Apache
+name: Deploy leo_site (EcoRecolecta) Angular a servidor Apache
 
 on:
   push:
-    branches: [ "main" ]   # cambia si usas otra rama
+    branches: [ "main" ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     env:
-      # Carpeta que genera tu build (por tu angular.json con nombre "app-frontend")
+      # Carpeta generada por Angular tras la build
       LOCAL_BUILD_DIR: app-frontend/dist/app-frontend/browser
-      # Ruta final donde Apache sirve el sitio
+      # Ruta final del sitio en el servidor
       DEPLOY_PATH: /var/www/leo_site
       BASE_HREF: "/leo_site/"
 
@@ -19,13 +19,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Node.js (LTS compatible con Angular)
+      - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Versions
+      - name: Mostrar versiones
         run: |
           node -v
           npm -v
@@ -34,38 +34,47 @@ jobs:
         working-directory: app-frontend
         run: npm ci
 
-      - name: Build Angular (prod)
+      - name: Build Angular (producción)
         working-directory: app-frontend
         run: |
-          # usar el CLI correcto incluso si no está en devDependencies
           npx -p @angular/cli@latest ng version
           npx -p @angular/cli@latest ng build --configuration production --base-href "${BASE_HREF}"
-          echo "📁 Árbol de dist:"
-          ls -la dist || true
-          ls -la dist/app-frontend || true
+          echo "📁 Árbol de build generado:"
           ls -la dist/app-frontend/browser || true
 
-      - name: Subir build al servidor (scp)
-        uses: appleboy/scp-action@v0.1.7
+      - name: Agregar .htaccess para SPA
+        run: |
+          echo "<IfModule mod_rewrite.c>
+          RewriteEngine On
+          RewriteBase /leo_site/
+          RewriteCond %{REQUEST_FILENAME} -f [OR]
+          RewriteCond %{REQUEST_FILENAME} -d
+          RewriteRule ^ - [L]
+          RewriteRule ^index\\.html$ - [L]
+          RewriteRule . /leo_site/index.html [L]
+          </IfModule>
+          DirectoryIndex index.html
+          ErrorDocument 404 /leo_site/index.html" \
+          > ${{ env.LOCAL_BUILD_DIR }}/.htaccess
+
+      - name: Subir build al servidor (rsync)
+        uses: burnett01/rsync-deployments@5.2
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}          # 👈 ANTES era key_path
-          source: "${{ env.LOCAL_BUILD_DIR }}/*"
-          target: "/home/${{ secrets.DEPLOY_USER }}/releases/app-basura-${{ github.run_id }}"
-          strip_components: 0
+          switches: -avz --delete
+          path: ${{ env.LOCAL_BUILD_DIR }}/
+          remote_path: ${{ env.DEPLOY_PATH }}
+          remote_host: ${{ secrets.DEPLOY_HOST }}
+          remote_user: ${{ secrets.DEPLOY_USER }}
+          remote_key: ${{ secrets.DEPLOY_KEY }}
 
-
-      - name: Publicar en ${DEPLOY_PATH}
+      - name: Verificar despliegue remoto
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           script: |
-            set -euo pipefail
-            RELEASE_DIR=/home/${{ secrets.DEPLOY_USER }}/releases/app-basura-${{ github.run_id }}
-            mkdir -p "${{ env.DEPLOY_PATH }}"
-            rm -rf "${{ env.DEPLOY_PATH }}"/*
-            cp -r "$RELEASE_DIR"/* "${{ env.DEPLOY_PATH }}/"
-            echo "Despliegue completado"
+            echo "✅ Archivos en el servidor:"
+            ls -lah ${{ env.DEPLOY_PATH }} | head
+            echo "✅ Despliegue finalizado correctamente"
+
