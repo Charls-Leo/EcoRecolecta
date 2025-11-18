@@ -1,28 +1,26 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { AppConfigService } from '../core/app-config.service'; // 👈 importa tu servicio de configuración
+import { environment } from '../../eviroments/enviroments.prod';
+
 
 @Injectable({
   providedIn: 'root'
 })
-export class UsuarioService {
+export class UsuariosService {
 
-  constructor(
-    private http: HttpClient,
-    private cfg: AppConfigService // 👈 inyecta AppConfigService
-  ) {}
+  private api = environment.apiUrl;
 
-  // Obtenemos la URL del backend directamente desde config.json
-  private get apiUrl(): string {
-    return `${this.cfg.apiUrl}/usuarios`;
+  constructor(private http: HttpClient) {}
+
+  obtenerUsuarios() {
+    return this.http.get(`${this.api}/usuarios`);
   }
 
-  getUsuarios(): Observable<any> {
-    return this.http.get(this.apiUrl);
+  registrarUsuario(usuario: any) {
+    return this.http.post(`${this.api}/usuarios/registro`, usuario);
   }
 
-  addUsuario(data: any): Observable<any> {
-    return this.http.post(this.apiUrl, data);
+  loginUsuario(datos: any) {
+    return this.http.post(`${this.api}/usuarios/login`, datos);
   }
 }
