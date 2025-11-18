@@ -5,6 +5,11 @@ require('dotenv').config();
 const app = express();
 const usuariosRoutes = require('./routes/usuarios');
 
+
+const vehiculosRoutes = require('./routes/vehiculos');
+app.use('/api/vehiculos', vehiculosRoutes);
+
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
