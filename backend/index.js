@@ -9,7 +9,7 @@ app.use(express.json());
 
 // Importar rutas
 const healthRoutes = require('./src/routes/health');
-const vehiculosRoutes = require('./routes/vehiculos.routes');  
+const vehiculosRoutes = require('./routes/vehiculos'); 
 // Registrar rutas
 app.use('/api', healthRoutes);
 app.use('/api/vehiculos', vehiculosRoutes);  // <--- MUY IMPORTANTE
