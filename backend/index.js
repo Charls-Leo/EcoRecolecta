@@ -10,15 +10,17 @@ app.use(express.json());
 // Importar rutas
 const healthRoutes = require('./src/routes/health');
 const vehiculosRoutes = require('./routes/vehiculos'); 
+const conductoresRoutes = require('./routes/conductores');
+const usuariosRoutes = require('./routes/usuarios');
 // Registrar rutas
 app.use('/api', healthRoutes);
 app.use('/api/vehiculos', vehiculosRoutes);  // <--- MUY IMPORTANTE
-
+app.use('/api/conductores', conductoresRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 // Ruta principal
 app.get('/', (req, res) => {
-  res.send('API Backend EcoRecolecta - ¡Funciona!');
+  res.send('API Backend EcoRecolecta');
 });
-
 // Manejo de errores
 app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
