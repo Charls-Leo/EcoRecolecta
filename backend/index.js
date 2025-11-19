@@ -8,9 +8,8 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // Importar rutas
-const healthRoutes = require('./routes/health');
-const vehiculosRoutes = require('./routes/vehiculos');  // <--- FALTABA ESTO
-
+const healthRoutes = require('./src/routes/health');
+const vehiculosRoutes = require('./routes/vehiculos.routes');  
 // Registrar rutas
 app.use('/api', healthRoutes);
 app.use('/api/vehiculos', vehiculosRoutes);  // <--- MUY IMPORTANTE
