@@ -100,10 +100,34 @@ const eliminarConductor = async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar conductor' });
   }
 };
+// Obtener una ruta por ID
+const conductorPorId = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'SELECT * FROM conductores WHERE id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Conductor no encontrado' });
+    }
+
+    res.json(result.rows[0]);
+
+  } catch (error) {
+    console.error('Error al obtener conductor:', error);
+    res.status(500).json({ error: 'Error al obtener conductor' });
+  }
+};
+
 
 module.exports = { 
   registrarConductor, 
+  conductorPorId,
   obtenerConductores, 
   actualizarConductor,
-  eliminarConductor
+  eliminarConductor,
+  
 };

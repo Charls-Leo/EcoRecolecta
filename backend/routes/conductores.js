@@ -4,11 +4,15 @@ const {
   registrarConductor, 
   obtenerConductores,
   actualizarConductor,
-  eliminarConductor
+  eliminarConductor,
+  conductorPorId
 } = require('../controllers/conductoresController');
 
 // Registrar
 router.post('/registro', registrarConductor);
+
+// Obtener ruta por ID
+router.get('/:id', conductorPorId);
 
 // Listar
 router.get('/', obtenerConductores);
@@ -18,5 +22,6 @@ router.put('/:id', actualizarConductor);
 
 // Eliminar
 router.delete('/:id', eliminarConductor);
+
 
 module.exports = router;
