@@ -12,7 +12,7 @@ export const routes: Routes = [
       import('./app/auth/login/login').then(m => m.LoginComponent)
   },
   {
-    path: 'register',
+    path: 'registro',
     loadComponent: () =>
       import('./app/pages/registro/registro').then(m => m.RegistroComponent)
   },
